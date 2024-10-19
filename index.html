@@ -365,14 +365,16 @@
                 }
             });
 
-            // Восстанавливаем энергию раз в 0.5 секунд, если она меньше energyLimit
-            setInterval(() => {
+            // Восстанавливаем энергию с использованием requestAnimationFrame
+            function restoreEnergy() {
                 if (energy < energyLimit) {
                     energy++;
                     updateEnergy();
                     localStorage.setItem('energy', energy);
                 }
-            }, 500);
+                requestAnimationFrame(restoreEnergy);
+            }
+            requestAnimationFrame(restoreEnergy);
 
             // Открываем и закрываем панель прокачки
             upgradeButton.addEventListener('click', () => {
@@ -425,4 +427,5 @@
     </script>
 </body>
 </html>
+
 
