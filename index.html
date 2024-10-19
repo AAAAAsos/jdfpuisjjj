@@ -32,15 +32,21 @@
             border-radius: 50%;
         }
 
-        .header .energy-container {
+        .header .user-info {
             display: flex;
             align-items: center;
+            gap: 10px;
         }
 
-        .header .energy-container img {
-            width: 24px;
-            height: 24px;
-            margin-right: 5px;
+        .header .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .header .user-info .username {
+            font-size: 1.5em;
+            color: #fff;
         }
 
         .container {
@@ -50,9 +56,9 @@
         }
 
         #coin {
-            width: 300px; /* Увеличен размер монеты в 3 раза */
+            width: 300px;
             height: 300px;
-            background-image: url('coin.png'); /* Используем локальный файл монеты */
+            background-image: url('coin.png');
             background-size: cover;
             border-radius: 50%;
             margin: 20px auto;
@@ -160,12 +166,57 @@
             font-size: 1em;
             cursor: pointer;
         }
+
+        .friends-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #444;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .friend-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .invite-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #6a5acd;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 15px 30px;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="info">
-            <img src="hamster.png" alt="Профиль" /> <!-- Локальная картинка профиля -->
+        <div class="user-info" id="userInfo">
+            <img src="" alt="Профиль" id="userAvatar" /> <!-- Аватар пользователя -->
+            <div class="username" id="userName">Имя пользователя</div> <!-- Имя пользователя -->
         </div>
     </div>
 
@@ -183,6 +234,10 @@
         <div class="bottom-panel-item" id="upgradeButton">
             <img src="upgrade.png" alt="Прокачка" /> <!-- Иконка для прокачки -->
             <span>Прокачка</span>
+        </div>
+        <div class="bottom-panel-item" id="friendsButton">
+            <img src="friends.png" alt="Друзья" /> <!-- Иконка для друзей -->
+            <span>Друзья</span>
         </div>
     </div>
 
@@ -209,8 +264,30 @@
         </div>
     </div>
 
+    <div class="friends-panel" id="friendsPanel">
+        <h2>Список ваших друзей</h2>
+        <div class="friend-list" id="friendList">
+            <!-- Список друзей будет динамически заполнен -->
+        </div>
+        <button class="invite-button" id="inviteFriendButton">Пригласить друга</button>
+    </div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
+            // Telegram Web App
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+
+            // Загружаем информацию о пользователе из Telegram Mini App
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                const userAvatar = document.getElementById('userAvatar');
+                const userName = document.getElementById('userName');
+                userAvatar.src = user.photo_url || 'default-avatar.png';
+                userName.textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+            }
+
             // Загружаем баланс и энергию из localStorage или задаем начальные значения
             let balance = localStorage.getItem('balance') || 0;
             balance = parseInt(balance);
@@ -220,15 +297,21 @@
             energyLimit = parseInt(energyLimit);
             let clickPower = localStorage.getItem('clickPower') || 1;
             clickPower = parseInt(clickPower);
+            let totalClicks = localStorage.getItem('totalClicks') || 0;
+            totalClicks = parseInt(totalClicks);
 
             const balanceElement = document.getElementById('balance');
             const coinElement = document.getElementById('coin');
             const energyElement = document.getElementById('energyCount');
             const container = document.querySelector('.container');
             const upgradeButton = document.getElementById('upgradeButton');
+            const friendsButton = document.getElementById('friendsButton');
             const upgradePanel = document.getElementById('upgradePanel');
+            const friendsPanel = document.getElementById('friendsPanel');
             const energyLimitButton = document.getElementById('energyLimitButton');
             const multiTapButton = document.getElementById('multiTapButton');
+            const friendList = document.getElementById('friendList');
+            const inviteFriendButton = document.getElementById('inviteFriendButton');
 
             // Обновляем баланс на экране
             function updateBalance() {
@@ -248,11 +331,24 @@
                 if (energy > 0) {
                     balance += clickPower;
                     energy--;
+                    totalClicks += clickPower;
                     updateBalance();
                     updateEnergy();
-                    // Сохраняем баланс и энергию в localStorage
+                    // Сохраняем баланс, энергию и количество кликов в localStorage
                     localStorage.setItem('balance', balance);
                     localStorage.setItem('energy', energy);
+                    localStorage.setItem('totalClicks', totalClicks);
+
+                    // Отправляем обновленное количество кликов на сервер
+                    fetch('https://your-server-endpoint.com/updateClicks', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ totalClicks: totalClicks })
+                    }).catch((error) => {
+                        console.error('Ошибка при отправке количества кликов:', error);
+                    });
 
                     // Создаем плавающий текст, отображающий текущий множитель клика
                     const floatingText = document.createElement('div');
@@ -283,6 +379,27 @@
                 upgradePanel.style.display = upgradePanel.style.display === 'none' || upgradePanel.style.display === '' ? 'flex' : 'none';
             });
 
+            // Открываем и закрываем панель друзей
+            friendsButton.addEventListener('click', () => {
+                friendsPanel.style.display = friendsPanel.style.display === 'none' || friendsPanel.style.display === '' ? 'flex' : 'none';
+            });
+
+            // Заполнение списка друзей (имитация получения данных)
+            function loadFriends() {
+                // Получение списка друзей из внешнего источника или динамическое заполнение
+            }
+            loadFriends();
+
+            // Генерация реферальной ссылки и копирование
+            inviteFriendButton.addEventListener('click', () => {
+                const referralLink = `https://t.me/RobuxTapBot/start?startapp=${user?.id}`;
+                navigator.clipboard.writeText(referralLink).then(() => {
+                    alert('Реферальная ссылка скопирована!');
+                }).catch((error) => {
+                    console.error('Ошибка при копировании реферальной ссылки:', error);
+                });
+            });
+
             // Обработчик для увеличения лимита энергии
             energyLimitButton.addEventListener('click', () => {
                 if (balance >= 200) {
@@ -308,3 +425,4 @@
     </script>
 </body>
 </html>
+
